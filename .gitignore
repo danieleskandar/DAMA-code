@@ -1,0 +1,11 @@
+*.vscode
+**__pycache__**
+*.txt
+*.out
+submodules
+data
+smplx
+submit_*.sh
+logs
+blender
+submit
