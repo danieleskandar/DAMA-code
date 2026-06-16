@@ -42,7 +42,8 @@ def save(
 
 
 def create_training_video(train_vis_dir, args, fps=10):
-    video_path = os.path.join(train_vis_dir, f"{os.path.basename(args.s)}_train_texture.mp4")
+    circular_suffix = "_circular" if args.circular else ""
+    video_path = os.path.join(train_vis_dir, f"{os.path.basename(args.s)}_train_texture{circular_suffix}.mp4")
     subprocess.run(
         [
             "ffmpeg",
