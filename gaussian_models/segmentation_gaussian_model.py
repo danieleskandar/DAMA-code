@@ -12,6 +12,7 @@ from utils.sh_utils import RGB2SH, SH2RGB
 from roma import quat_product, quat_xyzw_to_wxyz, quat_wxyz_to_xyzw
 from utils.general_utils import build_scaling_rotation, inverse_sigmoid, get_expon_lr_func
 
+
 class SegmentationGaussianModel:
 
     def __init__(self):
@@ -25,17 +26,17 @@ class SegmentationGaussianModel:
         self.unsigned_offset = False
 
         self._d_xyz = None
-        
+
         self._bary = None
         self._normal_offset = None
         self.logits = None
         self._scaling = None
         self._rotation = None
         self._opacity = None
-        
+
         self.vertices = None
         self.faces = None
-        
+
         self.posed_triangle_vertices = None
         self.posed_vertex_normals = None
         self.posed_base_rotation = None
@@ -58,13 +59,15 @@ class SegmentationGaussianModel:
 
     def setup_functions(self):
         def build_covariance_from_scaling_rotation(center, scaling, scaling_modifier, rotation):
-            RS = build_scaling_rotation(torch.cat([scaling * scaling_modifier, torch.ones_like(scaling)], dim=-1), rotation).permute(0,2,1)
+            RS = build_scaling_rotation(
+                torch.cat([scaling * scaling_modifier, torch.ones_like(scaling)], dim=-1), rotation
+            ).permute(0, 2, 1)
             trans = torch.zeros((center.shape[0], 4, 4), dtype=torch.float, device="cuda")
-            trans[:,:3,:3] = RS
-            trans[:, 3,:3] = center
+            trans[:, :3, :3] = RS
+            trans[:, 3, :3] = center
             trans[:, 3, 3] = 1
             return trans
-        
+
         self.scaling_activation = torch.exp
         self.scaling_inverse_activation = torch.log
 
@@ -76,25 +79,23 @@ class SegmentationGaussianModel:
     @property
     def get_scaling(self):
         return self.scaling_activation(self._scaling)
-    
+
     @property
     def get_rotation(self):
         relative_rotation = self.rotation_activation(self._rotation)
         base_rotation = self.rotation_activation(self.posed_base_rotation)
-        return quat_xyzw_to_wxyz(quat_product(
-            quat_wxyz_to_xyzw(base_rotation),
-            quat_wxyz_to_xyzw(relative_rotation)
-        ))
-    
+        return quat_xyzw_to_wxyz(
+            quat_product(quat_wxyz_to_xyzw(base_rotation), quat_wxyz_to_xyzw(relative_rotation))
+        )
+
     @property
     def get_canonical_rotation(self):
         relative_rotation = self.rotation_activation(self._rotation)
         base_rotation = self.rotation_activation(self.canonical_base_rotation)
-        return quat_xyzw_to_wxyz(quat_product(
-            quat_wxyz_to_xyzw(base_rotation),
-            quat_wxyz_to_xyzw(relative_rotation)
-        ))
-    
+        return quat_xyzw_to_wxyz(
+            quat_product(quat_wxyz_to_xyzw(base_rotation), quat_wxyz_to_xyzw(relative_rotation))
+        )
+
     @property
     def get_xyz(self):
         if self.free_xyz:
@@ -105,7 +106,7 @@ class SegmentationGaussianModel:
             normal = F.normalize(torch.sum(bary * self.posed_vertex_normals, dim=1), dim=-1)
             offset = F.softplus(self._normal_offset) if not self.unsigned_offset else self._normal_offset
             return base + offset * normal
-    
+
     @property
     def get_canonical_xyz(self):
         if self.free_xyz:
@@ -116,7 +117,7 @@ class SegmentationGaussianModel:
             normal = F.normalize(torch.sum(bary * self.canonical_vertex_normals, dim=1), dim=-1)
             offset = F.softplus(self._normal_offset) if not self.unsigned_offset else self._normal_offset
             return base + offset * normal
-    
+
     @property
     def get_features(self):
         probs = F.softmax(self._logits / self.temperature, dim=-1)
@@ -125,65 +126,73 @@ class SegmentationGaussianModel:
         blended = probs @ self.label_colors
         features = blended.unsqueeze(1)
         return features
-    
+
     @property
     def get_opacity(self):
         return self.opacity_activation(self._opacity)
-    
+
     def get_covariance(self, scaling_modifier=1):
         return self.covariance_activation(self.get_xyz, self.get_scaling, scaling_modifier, self._rotation)
 
     def training_setup(self, args):
         if args.free_xyz:
             l = [
-                {'params': [self._d_xyz], 'lr': args.position_lr_init * self.spatial_lr_scale, "name": "d_xyz"},
-                {'params': [self._logits], 'lr': args.feature_lr, "name": "logits"},
-                {'params': [self._scaling], 'lr': args.scaling_lr, "name": "scaling"},
-                {'params': [self._rotation], 'lr': args.rotation_lr, "name": "rotation"},
+                {
+                    "params": [self._d_xyz],
+                    "lr": args.position_lr_init * self.spatial_lr_scale,
+                    "name": "d_xyz",
+                },
+                {"params": [self._logits], "lr": args.feature_lr, "name": "logits"},
+                {"params": [self._scaling], "lr": args.scaling_lr, "name": "scaling"},
+                {"params": [self._rotation], "lr": args.rotation_lr, "name": "rotation"},
             ]
         else:
             l = [
-                {'params': [self._bary], 'lr': args.position_lr_init * self.spatial_lr_scale, "name": "bary"},
-                {'params': [self._normal_offset], 'lr': args.position_lr_init * self.spatial_lr_scale, "name": "offset"},
-                {'params': [self._logits], 'lr': args.feature_lr, "name": "logits"},
-                {'params': [self._scaling], 'lr': args.scaling_lr, "name": "scaling"},
-                {'params': [self._rotation], 'lr': args.rotation_lr, "name": "rotation"},
+                {"params": [self._bary], "lr": args.position_lr_init * self.spatial_lr_scale, "name": "bary"},
+                {
+                    "params": [self._normal_offset],
+                    "lr": args.position_lr_init * self.spatial_lr_scale,
+                    "name": "offset",
+                },
+                {"params": [self._logits], "lr": args.feature_lr, "name": "logits"},
+                {"params": [self._scaling], "lr": args.scaling_lr, "name": "scaling"},
+                {"params": [self._rotation], "lr": args.rotation_lr, "name": "rotation"},
             ]
 
         self.optimizer = torch.optim.Adam(l, lr=0.0, eps=1e-15)
         self.xyz_scheduler_args = get_expon_lr_func(
-            lr_init=args.position_lr_init*self.spatial_lr_scale,
-            lr_final=args.position_lr_final*self.spatial_lr_scale,
+            lr_init=args.position_lr_init * self.spatial_lr_scale,
+            lr_final=args.position_lr_final * self.spatial_lr_scale,
             lr_delay_mult=args.position_lr_delay_mult,
-            max_steps=args.num_iterations
+            max_steps=args.num_iterations,
         )
 
     def update_learning_rate(self, iteration):
-        ''' Learning rate scheduling per step '''
+        """Learning rate scheduling per step"""
         for param_group in self.optimizer.param_groups:
             if param_group["name"] in ["bary", "offset"]:
                 lr = self.xyz_scheduler_args(iteration)
-                param_group['lr'] = lr
+                param_group["lr"] = lr
                 return lr
 
     def construct_list_of_attributes(self):
-        l = ['x', 'y', 'z']
+        l = ["x", "y", "z"]
         if self.free_xyz:
-            l.extend(['dx', 'dy', 'dz'])
+            l.extend(["dx", "dy", "dz"])
         for i in range(self.label_colors.shape[1]):
-            l.append(f'f_dc_{i}')
+            l.append(f"f_dc_{i}")
         l.append("opacity")
         for i in range(self._scaling.shape[1] + 1):
-            l.append(f'scale_{i}')
+            l.append(f"scale_{i}")
         for i in range(self._rotation.shape[1]):
-            l.append(f'rot_{i}')
+            l.append(f"rot_{i}")
         for i in range(self._rotation.shape[1]):
-            l.append(f'rel_rot_{i}')
+            l.append(f"rel_rot_{i}")
         for i in range(self._bary.shape[1]):
-            l.append(f'bary_{i}')
+            l.append(f"bary_{i}")
         l.append("normal_offset")
         for i in range(self._logits.shape[1]):
-            l.append(f'prob_{i}')
+            l.append(f"prob_{i}")
         l.append("labels")
         l.append("refined_labels")
         return l
@@ -210,16 +219,47 @@ class SegmentationGaussianModel:
         opacity = self._opacity.detach().cpu().numpy()
         probs = F.softmax(self._logits / self.temperature, dim=-1).detach().cpu().numpy()
 
-        dtype_full = [(attr, 'f4') for attr in self.construct_list_of_attributes()]
+        dtype_full = [(attr, "f4") for attr in self.construct_list_of_attributes()]
         elements = np.empty(xyz.shape[0], dtype=dtype_full)
 
         if self.free_xyz:
-            attributes = np.concatenate((xyz, d_xyz, f_dc, opacity, scale, rotation, relative_rotation, bary, normal_offset, probs, self.labels, self.refined_labels), axis=1)
+            attributes = np.concatenate(
+                (
+                    xyz,
+                    d_xyz,
+                    f_dc,
+                    opacity,
+                    scale,
+                    rotation,
+                    relative_rotation,
+                    bary,
+                    normal_offset,
+                    probs,
+                    self.labels,
+                    self.refined_labels,
+                ),
+                axis=1,
+            )
         else:
-            attributes = np.concatenate((xyz, f_dc, opacity, scale, rotation, relative_rotation, bary, normal_offset, probs, self.labels, self.refined_labels), axis=1)
-            
+            attributes = np.concatenate(
+                (
+                    xyz,
+                    f_dc,
+                    opacity,
+                    scale,
+                    rotation,
+                    relative_rotation,
+                    bary,
+                    normal_offset,
+                    probs,
+                    self.labels,
+                    self.refined_labels,
+                ),
+                axis=1,
+            )
+
         elements[:] = list(map(tuple, attributes))
-        el = PlyElement.describe(elements, 'vertex')
+        el = PlyElement.describe(elements, "vertex")
         PlyData([el]).write(path)
 
     def save_segmented_smplx_mesh(self, path):
@@ -231,16 +271,20 @@ class SegmentationGaussianModel:
         segmented_smplx_mesh.export(path)
 
     def save_segmented_smplx_mesh_refined(self, path):
-        refined_face_colors = SH2RGB(self.label_colors[self.refined_labels.squeeze()].detach().cpu().numpy()) * 255
+        refined_face_colors = (
+            SH2RGB(self.label_colors[self.refined_labels.squeeze()].detach().cpu().numpy()) * 255
+        )
         vertices = self.vertices.detach().cpu().numpy()
         faces = self.faces.detach().cpu().numpy()
         refined_segmented_smplx_mesh = trimesh.Trimesh(vertices=vertices, faces=faces, process=False)
         refined_segmented_smplx_mesh.visual.face_colors = refined_face_colors
         refined_segmented_smplx_mesh.export(path)
 
-    def load_ply(self, smplx_gaussians, smplx_mesh, label_colors, spatial_lr_scale, canonical_properties, args):
+    def load_ply(
+        self, smplx_gaussians, smplx_mesh, label_colors, spatial_lr_scale, canonical_properties, args
+    ):
         self.label_colors = torch.tensor(RGB2SH(label_colors / 255.0)).float().cuda()
-        
+
         self.vertices = torch.tensor(smplx_mesh.vertices).float()
         self.faces = torch.tensor(smplx_mesh.faces).long()
         vertex_normals = torch.tensor(smplx_mesh.vertex_normals).float()
@@ -258,50 +302,92 @@ class SegmentationGaussianModel:
 
         self.unsigned_offset = args.unsigned_offset
         if self.unsigned_offset:
-            self._normal_offset = nn.Parameter(torch.zeros(num_gaussians, 1).float().cuda(), requires_grad=True)
+            self._normal_offset = nn.Parameter(
+                torch.zeros(num_gaussians, 1).float().cuda(), requires_grad=True
+            )
         else:
-            self._normal_offset = nn.Parameter(torch.full((num_gaussians, 1), -10).float().cuda(), requires_grad=True)
-        
-        logits = torch.full((num_gaussians, self.label_colors.shape[0]), -5.0, dtype=torch.float32, device="cuda")
+            self._normal_offset = nn.Parameter(
+                torch.full((num_gaussians, 1), -10).float().cuda(), requires_grad=True
+            )
+
+        logits = torch.full(
+            (num_gaussians, self.label_colors.shape[0]), -5.0, dtype=torch.float32, device="cuda"
+        )
         logits[:, 0] = 5.0
         self._logits = nn.Parameter(logits, requires_grad=True)
 
-        self._scaling = nn.Parameter(torch.tensor(np.stack([
-            np.asarray(smplx_gaussians["scale_0"]),
-            np.asarray(smplx_gaussians["scale_1"])
-        ], axis=1)).float().cuda(), requires_grad=True)
+        self._scaling = nn.Parameter(
+            torch.tensor(
+                np.stack(
+                    [np.asarray(smplx_gaussians["scale_0"]), np.asarray(smplx_gaussians["scale_1"])], axis=1
+                )
+            )
+            .float()
+            .cuda(),
+            requires_grad=True,
+        )
 
-        self.posed_base_rotation = nn.Parameter(torch.tensor(np.stack([
-            np.asarray(smplx_gaussians["rot_0"]),
-            np.asarray(smplx_gaussians["rot_1"]),
-            np.asarray(smplx_gaussians["rot_2"]),
-            np.asarray(smplx_gaussians["rot_3"])
-        ], axis=1)).float().cuda(), requires_grad=False)
+        self.posed_base_rotation = nn.Parameter(
+            torch.tensor(
+                np.stack(
+                    [
+                        np.asarray(smplx_gaussians["rot_0"]),
+                        np.asarray(smplx_gaussians["rot_1"]),
+                        np.asarray(smplx_gaussians["rot_2"]),
+                        np.asarray(smplx_gaussians["rot_3"]),
+                    ],
+                    axis=1,
+                )
+            )
+            .float()
+            .cuda(),
+            requires_grad=False,
+        )
 
-        self._rotation = nn.Parameter(torch.tensor(np.concatenate([
-            np.ones((num_gaussians, 1)),
-            np.zeros((num_gaussians, 3)),
-        ], axis=1)).float().cuda(), requires_grad=True)
+        self._rotation = nn.Parameter(
+            torch.tensor(
+                np.concatenate(
+                    [
+                        np.ones((num_gaussians, 1)),
+                        np.zeros((num_gaussians, 3)),
+                    ],
+                    axis=1,
+                )
+            )
+            .float()
+            .cuda(),
+            requires_grad=True,
+        )
 
-        self._opacity = nn.Parameter(torch.tensor(
-            np.asarray(smplx_gaussians["opacity"])
-        ).unsqueeze(1).float().cuda(), requires_grad=False)
+        self._opacity = nn.Parameter(
+            torch.tensor(np.asarray(smplx_gaussians["opacity"])).unsqueeze(1).float().cuda(),
+            requires_grad=False,
+        )
 
-        xyz = torch.tensor(np.stack([
-            np.asarray(smplx_gaussians["x"]),
-            np.asarray(smplx_gaussians["y"]),
-            np.asarray(smplx_gaussians["z"])
-        ], axis=1)).float().cuda()
+        xyz = (
+            torch.tensor(
+                np.stack(
+                    [
+                        np.asarray(smplx_gaussians["x"]),
+                        np.asarray(smplx_gaussians["y"]),
+                        np.asarray(smplx_gaussians["z"]),
+                    ],
+                    axis=1,
+                )
+            )
+            .float()
+            .cuda()
+        )
 
-        def compute_knn_neighbors(xyz, k=5, chunk_size=20908):
+        def compute_knn_neighbors(xyz, k=5, chunk_size=1024):
             neighbors = []
             for start in range(0, xyz.shape[0], chunk_size):
                 end = min(start + chunk_size, xyz.shape[0])
                 x_chunk = xyz[start:end]  # (B, 3)
                 dists = (
-                    x_chunk.pow(2).sum(dim=1, keepdim=True) +
-                    xyz.pow(2).sum(dim=1)[None, :] -
-                    2 * x_chunk @ xyz.T
+                    x_chunk.pow(2).sum(dim=1, keepdim=True)
+                    + xyz.pow(2).sum(dim=1)[None, :]
+                    - 2 * x_chunk @ xyz.T
                 )  # (B, N)
                 topk = torch.topk(dists, k=k, largest=False).indices  # (B, k)
                 neighbors.append(topk)
@@ -317,12 +403,22 @@ class SegmentationGaussianModel:
         self.canonical_triangle_vertices = canonical_vertices[self.faces].detach().cuda()
         self.canonical_vertex_normals = canonical_vertex_normals[self.faces].detach().cuda()
 
-        self.canonical_base_rotation = nn.Parameter(torch.tensor(np.stack([
-            np.asarray(canonical_properties["rotations"][:, 0]),
-            np.asarray(canonical_properties["rotations"][:, 1]),
-            np.asarray(canonical_properties["rotations"][:, 2]),
-            np.asarray(canonical_properties["rotations"][:, 3])
-        ], axis=1)).float().cuda(), requires_grad=False)
+        self.canonical_base_rotation = nn.Parameter(
+            torch.tensor(
+                np.stack(
+                    [
+                        np.asarray(canonical_properties["rotations"][:, 0]),
+                        np.asarray(canonical_properties["rotations"][:, 1]),
+                        np.asarray(canonical_properties["rotations"][:, 2]),
+                        np.asarray(canonical_properties["rotations"][:, 3]),
+                    ],
+                    axis=1,
+                )
+            )
+            .float()
+            .cuda(),
+            requires_grad=False,
+        )
 
         self.spatial_lr_scale = spatial_lr_scale
 
@@ -351,8 +447,12 @@ class SegmentationGaussianModel:
         while True:
             components = get_connected_components()
             small_components = sorted(
-                [(faces, label, area, count) for faces, label, area, count in components if area < area_threshold],
-                key=lambda x: x[2]
+                [
+                    (faces, label, area, count)
+                    for faces, label, area, count in components
+                    if area < area_threshold
+                ],
+                key=lambda x: x[2],
             )
             for faces, old_label, area, count in small_components:
                 neighbor_labels = [refined_labels[n] for f in faces for n in graph[f] if n not in faces]
@@ -375,9 +475,19 @@ class SegmentationGaussianModel:
         self.posed_triangle_vertices = vertices[self.faces].detach().cuda()
         self.posed_vertex_normals = vertex_normals[self.faces].detach().cuda()
 
-        self.posed_base_rotation = nn.Parameter(torch.tensor(np.stack([
-            np.asarray(pose_properties["rotations"][:, 0]),
-            np.asarray(pose_properties["rotations"][:, 1]),
-            np.asarray(pose_properties["rotations"][:, 2]),
-            np.asarray(pose_properties["rotations"][:, 3])
-        ], axis=1)).float().cuda(), requires_grad=False)
+        self.posed_base_rotation = nn.Parameter(
+            torch.tensor(
+                np.stack(
+                    [
+                        np.asarray(pose_properties["rotations"][:, 0]),
+                        np.asarray(pose_properties["rotations"][:, 1]),
+                        np.asarray(pose_properties["rotations"][:, 2]),
+                        np.asarray(pose_properties["rotations"][:, 3]),
+                    ],
+                    axis=1,
+                )
+            )
+            .float()
+            .cuda(),
+            requires_grad=False,
+        )

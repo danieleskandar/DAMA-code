@@ -100,6 +100,7 @@ def transform_to_RT(T):
     return rotvec, trans
 
 
+@torch.no_grad()
 def animate(args):
     background = torch.tensor([1, 1, 1]).float().cuda()
 
@@ -145,6 +146,7 @@ def animate(args):
     # smplx_model.use_full_hand_pose()
 
     # Read transform_vis.json
+    camera = None
     if args.circular:
         print("Reading transform_vis.json")
         cameras = read_cameras_from_transforms(args.s, "transforms_vis.json")
