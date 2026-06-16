@@ -41,6 +41,8 @@ DAMA: Disentangled Body-Anchored Gaussians <br> for Controllable Multi-Layered A
 
 ## 1. Installation
 
+Tested on an `RTX 2080 Ti GPU (11 GB VRAM)` with `Python 3.9`, `PyTorch 2.7.1`, and `CUDA 11.8`.
+
 See [INSTALL.md](INSTALL.md) for environment setup and installation instructions.
 
 ---
@@ -85,8 +87,16 @@ python preprocess/4D-DRESS/normalize.py -s $SUBJECT_ID
 Render multiview RGB images, segmentation masks, and save camera parameters:
 
 ```bash
-blender -b -P preprocess/4D-DRESS/render.py -- -s $SUBJECT_ID
+blender -b -P preprocess/4D-DRESS/render.py -- -s $SUBJECT_ID --render_vis
 ```
+
+<details>
+<summary><strong style="font-size: 0.95em;">Arguments</strong></summary>
+
+* `-s`: subject ID
+* `--render_vis`: render 360° visualization views *(optional)*
+
+</details>
 
 <details>
 <summary><strong style="font-size: 0.95em;">Output</strong></summary>
@@ -100,10 +110,7 @@ blender -b -P preprocess/4D-DRESS/render.py -- -s $SUBJECT_ID
 Convert the SMPL-X mesh into Gaussian primitives:
 
 ```bash
-python preprocess/create_smplx_gaussians.py \
-    -d data/4D-DRESS \
-    -s $SUBJECT_ID \
-    --subdivide
+python preprocess/create_smplx_gaussians.py -d data/4D-DRESS -s $SUBJECT_ID
 ```
 
 <details>
@@ -111,7 +118,6 @@ python preprocess/create_smplx_gaussians.py \
 
 * `-d`: dataset directory
 * `-s`: subject ID
-* `--subdivide`: subdivide the SMPL-X mesh before Gaussian initialization
 
 </details>
 
@@ -140,7 +146,8 @@ python train/train_segmentation.py \
 
 * `-s`: subject directory
 * `-c`: semantic label color map
-* `--vis`: save training visualizations
+* `--vis`: save training visualizations *(optional)*
+* `--circular`: render a rotating camera trajectory around the avatar *(optional)*
 
 </details>
 
@@ -169,7 +176,8 @@ python train/train_texture.py \
 
 * `-s`: subject directory
 * `-c`: semantic label color map
-* `--vis`: save training visualizations
+* `--vis`: save training visualizations *(optional)*
+* `--circular`: render a rotating camera trajectory around the avatar *(optional)*
 
 </details>
 
@@ -263,8 +271,9 @@ python applications/retarget.py \
 
 * `-s`: target subject
 * `-g1` to `-g5`: source subjects for hair, shoes, upper, lower, and outer garments
-* `--layer_order`: garment stacking order from inner to outer
-* `--vis`: save optimization visualizations during retargeting
+* `--layer_order`: garment stacking order from inner to outer *(optional)*
+* `--vis`: save optimization visualizations during retargeting *(optional)*
+* `--circular`: render a rotating camera trajectory around the avatar *(optional)*
 
 </details>
 
@@ -311,8 +320,9 @@ python applications/layer.py \
 
 * `-s`: target subject
 * `-g2` to `-g5`: source subjects for shoes, upper, lower, and outer garments
-* `--layer_order`: garment stacking order from inner to outer
-* `--vis`: save optimization visualizations during stacking
+* `--layer_order`: garment stacking order from inner to outer *(optional)*
+* `--vis`: save optimization visualizations during stacking *(optional)*
+* `--circular`: render a rotating camera trajectory around the avatar *(optional)*
 
 </details>
 
@@ -371,9 +381,9 @@ python applications/animate.py \
 * `-f`: avatar version (`posed`, `retargeted`, or `layered`)
 * `-m`: path to the AMASS motion sequence
 * `-n`: output animation name
-* `--render_layers`: render individual clothing layers next to the full avatar
-* `--circular`: render a rotating camera trajectory around the avatar
-* `--cam_index`: camera index used for rendering when `--circular` is not enabled
+* `--render_layers`: render individual clothing layers next to the full avatar *(optional)*
+* `--circular`: render a rotating camera trajectory around the avatar *(optional)*
+* `--cam_index`: camera index used for rendering when `--circular` is not enabled *(optional)*
 
 </details>
 
@@ -412,11 +422,7 @@ python applications/meshify.py -s data/4D-DRESS/00122_Inner -f retargeted
 
 ## Acknowledgements
 
-This repository builds upon the following open-source projects:
-
-- [2D Gaussian Splatting](https://github.com/hbb1/2d-gaussian-splatting)
-- [diff-surfel-rasterization](https://github.com/hbb1/diff-surfel-rasterization)
-- [simple-knn](https://github.com/camenduru/simple-knn)
+This repository is built on top of the [2D Gaussian Splatting](https://github.com/hbb1/2d-gaussian-splatting) repository.
 
 ## Citation
 
