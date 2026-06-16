@@ -12,10 +12,10 @@ from glob import glob
 from mathutils import Vector
 
 
-def setup_scene():
+def setup_scene(resolution=1024):
     bpy.ops.wm.read_factory_settings(use_empty=True)
     configure_world()
-    configure_render_settings()
+    configure_render_settings(resolution=resolution)
     enable_gpu()
     setup_compositor_passes()
     setup_camera_and_target()
@@ -28,7 +28,7 @@ def configure_world():
     background.inputs["Color"].default_value = (0.7, 0.7, 0.7, 1.0)
 
 
-def configure_render_settings(segmented=False):
+def configure_render_settings(segmented=False, resolution=1024):
     scene = bpy.context.scene
     if segmented:
         scene.render.engine = "BLENDER_WORKBENCH"
@@ -39,8 +39,8 @@ def configure_render_settings(segmented=False):
         scene.render.engine = "CYCLES"
         scene.cycles.samples = 64
         scene.cycles.device = "GPU"
-    scene.render.resolution_x = 1024
-    scene.render.resolution_y = 1024
+    scene.render.resolution_x = resolution
+    scene.render.resolution_y = resolution
     scene.render.image_settings.file_format = "PNG"
     scene.render.image_settings.color_mode = "RGBA"
     scene.render.film_transparent = True
@@ -269,6 +269,7 @@ def main():
     # Arguments
     parser = argparse.ArgumentParser()
     parser.add_argument("-s", type=str, help="Subject folder name")
+    parser.add_argument("--resolution", type=int, default=1024, help="Render resolution")
     parser.add_argument("--num_train_views", type=int, default=20, help="Number of training views")
     parser.add_argument("--num_test_views", type=int, default=13, help="Number of test views")
     parser.add_argument("--num_vis_views", type=int, default=360, help="Number of visualization views")
@@ -289,7 +290,7 @@ def main():
         os.makedirs(os.path.join(vis_gt_dir, "segmentation_masks"), exist_ok=True)
 
     # Scene
-    setup_scene()
+    setup_scene(resolution=args.resolution)
 
     # Trajectories
     trajectory_train = get_circular_trajectory(num_views=args.num_train_views, radius=1.5)
@@ -299,8 +300,8 @@ def main():
     # transforms_train.json
     transforms_train = {
         "camera_angle_x": bpy.data.objects["Camera"].data.angle_x,
-        "height": 1024,
-        "width": 1024,
+        "height": args.resolution,
+        "width": args.resolution,
         "frames": [],
     }
     for camera_location in trajectory_train:
@@ -314,8 +315,8 @@ def main():
     # transforms_test.json
     transforms_test = {
         "camera_angle_x": bpy.data.objects["Camera"].data.angle_x,
-        "height": 1024,
-        "width": 1024,
+        "height": args.resolution,
+        "width": args.resolution,
         "frames": [],
     }
     for camera_location in trajectory_test:
@@ -329,8 +330,8 @@ def main():
     # transforms_vis.json
     transforms_vis = {
         "camera_angle_x": bpy.data.objects["Camera"].data.angle_x,
-        "height": 1024,
-        "width": 1024,
+        "height": args.resolution,
+        "width": args.resolution,
         "frames": [],
     }
     for camera_location in trajectory_vis:
@@ -343,7 +344,7 @@ def main():
 
     # Render scan
     scan_path = os.path.join("./data", "4D-DRESS", args.s, "meshes", "scan.obj")
-    configure_render_settings(segmented=False)
+    configure_render_settings(segmented=False, resolution=args.resolution)
     load_obj(scan_path)
 
     for i, camera_location in enumerate(trajectory_train):
@@ -378,7 +379,7 @@ def main():
 
     # Render segmented scan
     segmented_scan_path = os.path.join("./data", "4D-DRESS", args.s, "meshes", "segmented_scan.ply")
-    configure_render_settings(segmented=True)
+    configure_render_settings(segmented=True, resolution=args.resolution)
     load_ply(segmented_scan_path, segmented=True)
 
     for i, camera_location in enumerate(trajectory_train):
