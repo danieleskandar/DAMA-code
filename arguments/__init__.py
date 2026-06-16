@@ -5,6 +5,7 @@ experiment_folder = "main"
 
 def get_train_segmentation_args():
     parser = argparse.ArgumentParser()
+    parser.set_defaults(use_subdivided_mesh=True)
 
     # Paths
     parser.add_argument("-s", type=str, required=True, help="Source path")
@@ -17,7 +18,10 @@ def get_train_segmentation_args():
 
     # Use subdivided mesh
     parser.add_argument(
-        "--use_subdivided_mesh", action="store_true", default=True, help="Use subdivided mesh"
+        "--no_use_subdivided_mesh",
+        action="store_false",
+        dest="use_subdivided_mesh",
+        help="Disable subdivided mesh",
     )
 
     # Renderer
@@ -58,6 +62,7 @@ def get_train_segmentation_args():
 
 def get_train_texture_args():
     parser = argparse.ArgumentParser()
+    parser.set_defaults(use_subdivided_mesh=True)
 
     # Paths
     parser.add_argument("-s", type=str, required=True, help="Source path")
@@ -70,7 +75,10 @@ def get_train_texture_args():
 
     # Use subdivided mesh
     parser.add_argument(
-        "--use_subdivided_mesh", action="store_true", default=True, help="Use subdivided mesh"
+        "--no_use_subdivided_mesh",
+        action="store_false",
+        dest="use_subdivided_mesh",
+        help="Disable subdivided mesh",
     )
 
     # Renderer
@@ -115,6 +123,7 @@ def get_train_texture_args():
 
 def get_retarget_args():
     parser = argparse.ArgumentParser()
+    parser.set_defaults(use_subdivided_mesh=True)
 
     # Paths
     parser.add_argument("-s", type=str, required=True, help="Target subject")
@@ -131,7 +140,10 @@ def get_retarget_args():
 
     # Use subdivided mesh
     parser.add_argument(
-        "--use_subdivided_mesh", action="store_true", default=True, help="Use subdivided mesh"
+        "--no_use_subdivided_mesh",
+        action="store_false",
+        dest="use_subdivided_mesh",
+        help="Disable subdivided mesh",
     )
 
     # Renderer
@@ -177,6 +189,7 @@ def get_retarget_args():
 
 def get_layer_args():
     parser = argparse.ArgumentParser()
+    parser.set_defaults(use_subdivided_mesh=True)
 
     # Paths
     parser.add_argument("-s", type=str, required=True, help="Source path")
@@ -192,7 +205,10 @@ def get_layer_args():
 
     # Use subdivided mesh
     parser.add_argument(
-        "--use_subdivided_mesh", action="store_true", default=True, help="Use subdivided mesh"
+        "--no_use_subdivided_mesh",
+        action="store_false",
+        dest="use_subdivided_mesh",
+        help="Disable subdivided mesh",
     )
 
     # Renderer
@@ -238,6 +254,7 @@ def get_layer_args():
 
 def get_animate_args():
     parser = argparse.ArgumentParser()
+    parser.set_defaults(use_subdivided_mesh=True)
 
     # Paths
     parser.add_argument("-s", type=str, required=True, help="Source path")
@@ -261,7 +278,10 @@ def get_animate_args():
 
     # Use subdivided mesh
     parser.add_argument(
-        "--use_subdivided_mesh", action="store_true", default=True, help="Use subdivided mesh"
+        "--no_use_subdivided_mesh",
+        action="store_false",
+        dest="use_subdivided_mesh",
+        help="Disable subdivided mesh",
     )
 
     # Renderer
@@ -280,6 +300,7 @@ def get_animate_args():
 
 def get_meshify_args():
     parser = argparse.ArgumentParser()
+    parser.set_defaults(use_subdivided_mesh=True)
 
     # Paths
     parser.add_argument("-s", type=str, required=True, help="Source path")
@@ -300,7 +321,10 @@ def get_meshify_args():
 
     # Use subdivided mesh
     parser.add_argument(
-        "--use_subdivided_mesh", action="store_true", default=True, help="Use subdivided mesh"
+        "--no_use_subdivided_mesh",
+        action="store_false",
+        dest="use_subdivided_mesh",
+        help="Disable subdivided mesh",
     )
 
     # Spatial lr scale
@@ -336,6 +360,7 @@ def get_meshify_args():
 
 def get_evaluation_args():
     parser = argparse.ArgumentParser()
+    parser.set_defaults(use_subdivided_mesh=True)
 
     # Paths
     parser.add_argument("-s", type=str, required=True, help="Source path")

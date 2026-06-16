@@ -230,7 +230,9 @@ def read_synthetic_info(args, read_cameras=True):
             os.path.join(args.s, "gaussians", args.e, "posed", "smplx_subdivided.ply")
         ).elements[0]
     else:
-        smplx_mesh = trimesh.load(os.path.join(args.s, "meshes", "smplx.ply"), process=False)
+        smplx_mesh = trimesh.load(
+            os.path.join(args.s, "meshes", "smplx.ply"), maintain_order=True, process=False
+        )
         smplx_gaussians = PlyData.read(
             os.path.join(args.s, "gaussians", args.e, "posed", "smplx.ply")
         ).elements[0]
