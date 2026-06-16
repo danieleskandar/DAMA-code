@@ -1,6 +1,6 @@
 # Installation Guide
 
-Tested with Python 3.9, PyTorch 2.7.1, and CUDA 11.8.
+Tested on an `RTX 2080 Ti GPU (11 GB VRAM)` with `Python 3.9`, `PyTorch 2.7.1`, and `CUDA 11.8`.
 
 ## 0. Clone the repository
 
